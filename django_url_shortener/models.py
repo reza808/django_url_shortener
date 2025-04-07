@@ -1,9 +1,6 @@
 from django.conf import settings
 from django.db import models
-try:
-    from django.utils.encoding import smart_text
-except:
-    from django.utils.encoding import smart_str as smart_text
+from django.utils.encoding import smart_str
 from django.urls import reverse
 from .validators import validate_url
 from django.contrib.auth import get_user_model
@@ -17,8 +14,12 @@ BASE_URL = getattr(settings, "BASE_URL", "http://127.0.0.1:8000")
 
 User = get_user_model()
 
-def code_generator(size=SHORTCODE_MIN, chars=string.ascii_lowercase + string.digits + string.ascii_uppercase):
-        return ''.join(random.choice(chars) for _ in range(size))
+
+def code_generator(
+    size=SHORTCODE_MIN,
+    chars=string.ascii_lowercase + string.digits + string.ascii_uppercase,
+):
+    return "".join(random.choice(chars) for _ in range(size))
 
 
 def create_shortcode(size=SHORTCODE_MIN):
@@ -28,8 +29,9 @@ def create_shortcode(size=SHORTCODE_MIN):
         return create_shortcode(size=size)
     return new_code
 
+
 class ShortURLManager(models.Manager):
-    
+
     def all(self, *args, **kwargs):
         qs_main = super(ShortURLManager, self).all(*args, **kwargs)
         qs = qs_main.filter(active=True)
@@ -38,7 +40,7 @@ class ShortURLManager(models.Manager):
     def refresh_shortcodes(self, items=None):
         qs = ShortUrl.objects.filter(id__gte=1)
         if items is not None and isinstance(items, int):
-            qs = qs.order_by('-id')[:items]
+            qs = qs.order_by("-id")[:items]
         new_codes = 0
         for q in qs:
             q.shortcode = create_shortcode()
@@ -49,18 +51,24 @@ class ShortURLManager(models.Manager):
 
 
 class ShortUrl(models.Model):
-    user = models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank= True, related_name='short_urls')
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="short_urls",
+    )
     url = models.CharField(max_length=256, validators=[validate_url])
     shortcode = models.CharField(max_length=SHORTCODE_MAX, unique=True, blank=True)
-    expiry_date = models.DateTimeField(blank=True, null= True, default = None)
-    password = models.CharField(max_length=255, blank=True, null= True, default = None)
+    expiry_date = models.DateTimeField(blank=True, null=True, default=None)
+    password = models.CharField(max_length=255, blank=True, null=True, default=None)
     active = models.BooleanField(default=True)
     objects = ShortURLManager()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-updated_at']
+        ordering = ["-updated_at"]
 
     def save(self, *args, **kwargs):
         if self.shortcode is None or self.shortcode == "":
@@ -72,15 +80,14 @@ class ShortUrl(models.Model):
         super(ShortUrl, self).save(*args, **kwargs)
 
     def __str__(self):
-        return smart_text(self.url)
+        return smart_str(self.url)
 
     def __unicode__(self):
-        return smart_text(self.url)
+        return smart_str(self.url)
 
     def get_short_url(self):
-        url_path = BASE_URL+reverse("scode", kwargs={'shortcode': self.shortcode})
+        url_path = BASE_URL + reverse("scode", kwargs={"shortcode": self.shortcode})
         return url_path
-
 
 
 class ClickEventManager(models.Manager):
@@ -92,11 +99,14 @@ class ClickEventManager(models.Manager):
             return obj.count
         return None
 
+
 class ClickEvent(models.Model):
-    sh_url    = models.OneToOneField(ShortUrl,on_delete=models.CASCADE,related_name='clicks')
-    count       = models.IntegerField(default=0)
-    updated     = models.DateTimeField(auto_now=True)
-    timestamp   = models.DateTimeField(auto_now_add=True)
+    sh_url = models.OneToOneField(
+        ShortUrl, on_delete=models.CASCADE, related_name="clicks"
+    )
+    count = models.IntegerField(default=0)
+    updated = models.DateTimeField(auto_now=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     objects = ClickEventManager()
 
